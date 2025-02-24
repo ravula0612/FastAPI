@@ -7,7 +7,12 @@ import logging
 import logging
 from logging.handlers import RotatingFileHandler
 import sys
-
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import os
+from dotenv import load_dotenv
+import traceback
+load_dotenv()
 # Create logger
 logger = logging.getLogger("fastapi_app")
 logger.setLevel(logging.INFO)
@@ -46,10 +51,18 @@ class Post(BaseModel):
     title: str 
     content: str
     published: bool=True
-    rating: Optional[int]=None
-
-
-
+while True:
+    try:
+        conn = psycopg2.connect(host='localhost',
+                                database='fastapi',
+                                user='postgres', 
+                                password='Anu627',
+                                cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        logger.info(f'successfully connected to the postgres.........')
+        break
+    except Exception as ex:
+        logger.error(f'Error occured {ex}, {traceback.print_exc()}')
 # dynamic list of post will be available here
 
 my_posts = [{'id':1,'title':"1", 'content':'content 1'}]
@@ -60,16 +73,19 @@ async def root():
 
 @app.post("/posts")
 async def create_post(new_post: Post):
-    post_dict = new_post.dict()
-    post_dict['id'] = randrange(0, 1000000)
-    my_posts.append(post_dict)
-    print(my_posts)
+    cursor.execute("""
+                   INSERT INTO posts(title, content, published) VALUES (%s, %s, %s) 
+                   RETURNING * """, (new_post.title,new_post.content, new_post.published))
+    post_dict = cursor.fetchone()
+    conn.commit()
     return {"message":"created a post sucessfully",
             "body":post_dict}
 
 @app.get("/posts")
 async def get_post():
-    return {"posts":my_posts}
+    cursor.execute("""SELECT * FROM posts """)
+    posts = cursor.fetchall()
+    return {"posts":posts}
 
 async def  find_post(id: int):
     try:
@@ -88,8 +104,9 @@ async def get_latest_post():
     return {"post_details": post}
 
 @app.get("/posts/{id}")
-async def get_post(id: int, response: Response):
-    post_details = await find_post(id)
+async def get_post(id: int):
+    cursor.execute(f"""SELECT * FROM posts WHERE id={id}""")
+    post_details = cursor.fetchone()
     if not post_details:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"post with id: {id} was not found")

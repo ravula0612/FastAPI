@@ -48,3 +48,11 @@ delete => delete      => /posts/:id  => @app.post("/posts/{id}")
 = ideally every dynamic api calls will store some data or extract some data from the data base 
 
 
+popular relational databases : (Mysql, postgresql)
+popular Non relational databases: (dynamodb, mongodb, redis)
+
+
+for this project i am using postgresql
+
+please have an idea of the dbms concepts & Query languages.
+
